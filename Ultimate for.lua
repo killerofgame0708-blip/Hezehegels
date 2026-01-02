@@ -1,637 +1,549 @@
--- Ultimate Center Dot + Fly Script for Mobile
--- By: YourName
--- Version: 1.0
+-- ============================================
+-- 🎮 ULTIMATE SCRIPT VERSI FINAL 🎮
+-- Center Dot + Fly + Spectate + Teleport + God Mode Fix
+-- ============================================
 
-local function Main()
-    -- Tunggu game load
-    if not game:IsLoaded() then
-        game.Loaded:Wait()
-    end
+-- Tunggu game load
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
 
-    -- Services
-    local Players = game:GetService("Players")
-    local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
-    
-    -- Player
-    local player = Players.LocalPlayer
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    local playerGui = player:WaitForChild("PlayerGui")
-    
-    -- Hapus GUI lama jika ada
-    if playerGui:FindFirstChild("UltimateDotGUI") then
-        playerGui.UltimateDotGUI:Destroy()
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+-- Player
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Hapus GUI lama jika ada
+pcall(function()
+    if playerGui:FindFirstChild("FinalGUI") then
+        playerGui.FinalGUI:Destroy()
     end
+end)
+
+-- ============================================
+-- VARIABEL UTAMA
+-- ============================================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FinalGUI"
+screenGui.DisplayOrder = 999
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = playerGui
+
+-- State variables
+local dotEnabled = true
+local flyEnabled = false
+local noclipEnabled = false
+local godModeEnabled = false
+local spectateEnabled = false
+local flySpeed = 50
+local spectatingPlayer = nil
+local originalCameraType = nil
+local flyBV, flyBG
+
+-- ============================================
+-- 1. CENTER DOT
+-- ============================================
+local centerDot = Instance.new("Frame")
+centerDot.Name = "CenterDot"
+centerDot.AnchorPoint = Vector2.new(0.5, 0.5)
+centerDot.Position = UDim2.new(0.5, 0, 0.5, 0)
+centerDot.Size = UDim2.new(0, 10, 0, 10)
+centerDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+centerDot.BorderSizePixel = 0
+centerDot.BackgroundTransparency = 0.3
+centerDot.Visible = true
+centerDot.ZIndex = 5
+
+local dotCorner = Instance.new("UICorner")
+dotCorner.CornerRadius = UDim.new(1, 0)
+dotCorner.Parent = centerDot
+
+local dotOutline = Instance.new("UIStroke")
+dotOutline.Color = Color3.fromRGB(255, 255, 255)
+dotOutline.Thickness = 2
+dotOutline.Parent = centerDot
+
+centerDot.Parent = screenGui
+
+-- ============================================
+-- 2. FLY CONTROLS PANEL (FIXED - TIDAK HILANG)
+-- ============================================
+local flyControlPanel = Instance.new("Frame")
+flyControlPanel.Name = "FlyControlPanel"
+flyControlPanel.Position = UDim2.new(0, 20, 1, -180)
+flyControlPanel.Size = UDim2.new(0, 200, 0, 160)
+flyControlPanel.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
+flyControlPanel.BackgroundTransparency = 0.3
+flyControlPanel.BorderSizePixel = 0
+flyControlPanel.Visible = false
+flyControlPanel.ZIndex = 8
+
+local flyPanelCorner = Instance.new("UICorner")
+flyPanelCorner.CornerRadius = UDim.new(0, 12)
+flyPanelCorner.Parent = flyControlPanel
+
+-- Title
+local flyPanelTitle = Instance.new("TextLabel")
+flyPanelTitle.Size = UDim2.new(1, 0, 0, 30)
+flyPanelTitle.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
+flyPanelTitle.Text = "✈️ FLY CONTROLS"
+flyPanelTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyPanelTitle.Font = Enum.Font.GothamBold
+flyPanelTitle.TextSize = 14
+flyPanelTitle.Parent = flyControlPanel
+
+-- Control Buttons Grid
+local controlGrid = Instance.new("Frame")
+controlGrid.Name = "ControlGrid"
+controlGrid.Position = UDim2.new(0, 10, 0, 40)
+controlGrid.Size = UDim2.new(1, -20, 1, -50)
+controlGrid.BackgroundTransparency = 1
+controlGrid.Parent = flyControlPanel
+
+-- Tombol-tombol kontrol
+local function createFlyButton(name, text, posX, posY, color)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Position = UDim2.new(posX, 0, posY, 0)
+    button.Size = UDim2.new(0, 40, 0, 40)
+    button.BackgroundColor3 = color
+    button.BackgroundTransparency = 0.3
+    button.Text = text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 18
+    button.ZIndex = 9
     
-    -- ============================================
-    -- BUAT GUI
-    -- ============================================
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "UltimateDotGUI"
-    screenGui.DisplayOrder = 999
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 8)
+    buttonCorner.Parent = button
     
-    -- ============================================
-    -- CENTER DOT
-    -- ============================================
-    local centerDot = Instance.new("Frame")
-    centerDot.Name = "CenterDot"
-    centerDot.AnchorPoint = Vector2.new(0.5, 0.5)
-    centerDot.Position = UDim2.new(0.5, 0, 0.5, 0)
-    centerDot.Size = UDim2.new(0, 12, 0, 12)
-    centerDot.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    centerDot.BorderSizePixel = 0
-    centerDot.BackgroundTransparency = 0.3
-    centerDot.Visible = true
+    return button
+end
+
+-- Buat tombol kontrol
+local upBtn = createFlyButton("UpBtn", "↑", 0.5, 0, Color3.fromRGB(0, 200, 0))
+local leftBtn = createFlyButton("LeftBtn", "←", 0, 0.5, Color3.fromRGB(200, 200, 0))
+local centerBtn = createFlyButton("CenterBtn", "●", 0.5, 0.5, Color3.fromRGB(100, 100, 200))
+local rightBtn = createFlyButton("RightBtn", "→", 1, 0.5, Color3.fromRGB(200, 200, 0))
+local downBtn = createFlyButton("DownBtn", "↓", 0.5, 1, Color3.fromRGB(200, 0, 0))
+local forwardBtn = createFlyButton("ForwardBtn", "▲", 0.5, -0.2, Color3.fromRGB(0, 150, 255))
+local backBtn = createFlyButton("BackBtn", "▼", 0.5, 1.2, Color3.fromRGB(255, 150, 0))
+
+-- Position adjustments
+upBtn.Position = UDim2.new(0.5, -20, 0, 10)
+leftBtn.Position = UDim2.new(0, 10, 0.5, -20)
+centerBtn.Position = UDim2.new(0.5, -20, 0.5, -20)
+rightBtn.Position = UDim2.new(1, -50, 0.5, -20)
+downBtn.Position = UDim2.new(0.5, -20, 1, -50)
+forwardBtn.Position = UDim2.new(0.5, -20, -0.2, 60)
+backBtn.Position = UDim2.new(0.5, -20, 1.2, -60)
+
+-- Parent semua tombol
+upBtn.Parent = controlGrid
+leftBtn.Parent = controlGrid
+centerBtn.Parent = controlGrid
+rightBtn.Parent = controlGrid
+downBtn.Parent = controlGrid
+forwardBtn.Parent = controlGrid
+backBtn.Parent = controlGrid
+
+flyControlPanel.Parent = screenGui
+
+-- ============================================
+-- 3. MAIN MENU DENGAN SCROLL
+-- ============================================
+local mainMenu = Instance.new("Frame")
+mainMenu.Name = "MainMenu"
+mainMenu.Position = UDim2.new(0, 10, 0, 70)
+mainMenu.Size = UDim2.new(0, 200, 0, 300)
+mainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+mainMenu.BackgroundTransparency = 0.1
+mainMenu.BorderSizePixel = 0
+mainMenu.Visible = true
+mainMenu.ZIndex = 10
+mainMenu.Active = true
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 12)
+menuCorner.Parent = mainMenu
+
+-- Header Menu
+local menuHeader = Instance.new("Frame")
+menuHeader.Name = "Header"
+menuHeader.Size = UDim2.new(1, 0, 0, 40)
+menuHeader.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+menuHeader.BorderSizePixel = 0
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 12)
+headerCorner.Parent = menuHeader
+
+-- Title
+local menuTitle = Instance.new("TextLabel")
+menuTitle.Name = "Title"
+menuTitle.Size = UDim2.new(1, -40, 1, 0)
+menuTitle.BackgroundTransparency = 1
+menuTitle.Text = "🎮 ULTIMATE MENU"
+menuTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+menuTitle.Font = Enum.Font.GothamBold
+menuTitle.TextSize = 14
+menuTitle.TextXAlignment = Enum.TextXAlignment.Left
+menuTitle.Position = UDim2.new(0, 10, 0, 0)
+menuTitle.Parent = menuHeader
+
+-- Toggle Menu Button
+local toggleMenuBtn = Instance.new("TextButton")
+toggleMenuBtn.Name = "ToggleMenuBtn"
+toggleMenuBtn.Position = UDim2.new(1, -35, 0, 5)
+toggleMenuBtn.Size = UDim2.new(0, 30, 0, 30)
+toggleMenuBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
+toggleMenuBtn.Text = "▼"
+toggleMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleMenuBtn.Font = Enum.Font.GothamBold
+toggleMenuBtn.TextSize = 16
+toggleMenuBtn.Parent = menuHeader
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleMenuBtn
+
+-- Scrolling Frame
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Name = "ScrollFrame"
+scrollFrame.Position = UDim2.new(0, 0, 0, 45)
+scrollFrame.Size = UDim2.new(1, 0, 1, -45)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 8
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 150)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
+scrollFrame.ZIndex = 11
+
+menuHeader.Parent = mainMenu
+scrollFrame.Parent = mainMenu
+mainMenu.Parent = screenGui
+
+-- ============================================
+-- 4. QUICK ACCESS BUTTONS
+-- ============================================
+local quickAccess = Instance.new("Frame")
+quickAccess.Name = "QuickAccess"
+quickAccess.Position = UDim2.new(0, 10, 0, 10)
+quickAccess.Size = UDim2.new(0, 180, 0, 50)
+quickAccess.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+quickAccess.BackgroundTransparency = 0.2
+quickAccess.BorderSizePixel = 0
+quickAccess.ZIndex = 9
+
+local quickCorner = Instance.new("UICorner")
+quickCorner.CornerRadius = UDim.new(0, 10)
+quickCorner.Parent = quickAccess
+
+-- Dot Toggle Button
+local dotQuickBtn = Instance.new("TextButton")
+dotQuickBtn.Name = "DotQuickBtn"
+dotQuickBtn.Position = UDim2.new(0, 10, 0, 10)
+dotQuickBtn.Size = UDim2.new(0, 50, 0, 30)
+dotQuickBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+dotQuickBtn.Text = "🔴"
+dotQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dotQuickBtn.Font = Enum.Font.GothamBold
+dotQuickBtn.TextSize = 14
+dotQuickBtn.Parent = quickAccess
+
+-- Fly Toggle Button
+local flyQuickBtn = Instance.new("TextButton")
+flyQuickBtn.Name = "FlyQuickBtn"
+flyQuickBtn.Position = UDim2.new(0, 70, 0, 10)
+flyQuickBtn.Size = UDim2.new(0, 50, 0, 30)
+flyQuickBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
+flyQuickBtn.Text = "✈️"
+flyQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyQuickBtn.Font = Enum.Font.GothamBold
+flyQuickBtn.TextSize = 14
+flyQuickBtn.Parent = quickAccess
+
+-- Menu Toggle Button
+local menuQuickBtn = Instance.new("TextButton")
+menuQuickBtn.Name = "MenuQuickBtn"
+menuQuickBtn.Position = UDim2.new(0, 130, 0, 10)
+menuQuickBtn.Size = UDim2.new(0, 40, 0, 30)
+menuQuickBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 150)
+menuQuickBtn.Text = "☰"
+menuQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+menuQuickBtn.Font = Enum.Font.GothamBold
+menuQuickBtn.TextSize = 16
+menuQuickBtn.Parent = quickAccess
+
+quickAccess.Parent = screenGui
+
+-- ============================================
+-- 5. FUNGSI BUAT TOMBOL MENU
+-- ============================================
+local function createMenuButton(name, text, yPos, color, icon)
+    local button = Instance.new("TextButton")
+    button.Name = name
+    button.Position = UDim2.new(0, 10, 0, yPos)
+    button.Size = UDim2.new(1, -20, 0, 35)
+    button.BackgroundColor3 = color
+    button.Text = icon .. " " .. text
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 12
+    button.AutoButtonColor = true
+    button.TextXAlignment = Enum.TextXAlignment.Left
+    button.ZIndex = 12
     
-    local dotCorner = Instance.new("UICorner")
-    dotCorner.CornerRadius = UDim.new(1, 0)
-    dotCorner.Parent = centerDot
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = button
     
-    local dotOutline = Instance.new("UIStroke")
-    dotOutline.Color = Color3.fromRGB(255, 255, 255)
-    dotOutline.Thickness = 2
-    dotOutline.Parent = centerDot
+    return button
+end
+
+-- Container untuk tombol
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Name = "ButtonContainer"
+buttonContainer.Size = UDim2.new(1, 0, 0, 0)
+buttonContainer.BackgroundTransparency = 1
+buttonContainer.Parent = scrollFrame
+
+-- ============================================
+-- 6. BUAT SEMUA TOMBOL FITUR
+-- ============================================
+local buttons = {}
+local currentY = 10
+
+-- 1. Center Dot Toggle
+buttons.dotBtn = createMenuButton("DotBtn", "Center Dot: ON", currentY, Color3.fromRGB(255, 50, 50), "🔴")
+buttons.dotBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 2. Fly Mode
+buttons.flyBtn = createMenuButton("FlyBtn", "Fly Mode: OFF", currentY, Color3.fromRGB(50, 150, 255), "✈️")
+buttons.flyBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 3. Noclip
+buttons.noclipBtn = createMenuButton("NoclipBtn", "Noclip: OFF", currentY, Color3.fromRGB(180, 100, 255), "👻")
+buttons.noclipBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 4. God Mode (FIXED)
+buttons.godBtn = createMenuButton("GodBtn", "God Mode: OFF", currentY, Color3.fromRGB(255, 200, 50), "🛡️")
+buttons.godBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 5. Spectate Mode
+buttons.spectateBtn = createMenuButton("SpectateBtn", "Spectate: OFF", currentY, Color3.fromRGB(150, 100, 200), "👁️")
+buttons.spectateBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 6. Player List for Spectate/Teleport
+local playerListLabel = Instance.new("TextLabel")
+playerListLabel.Name = "PlayerListLabel"
+playerListLabel.Position = UDim2.new(0, 10, 0, currentY)
+playerListLabel.Size = UDim2.new(1, -20, 0, 25)
+playerListLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+playerListLabel.BackgroundTransparency = 0.5
+playerListLabel.Text = "Select Player:"
+playerListLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+playerListLabel.Font = Enum.Font.Gotham
+playerListLabel.TextSize = 12
+playerListLabel.TextXAlignment = Enum.TextXAlignment.Left
+playerListLabel.ZIndex = 12
+playerListLabel.Parent = buttonContainer
+currentY = currentY + 30
+
+-- Player Dropdown
+local playerDropdown = Instance.new("TextButton")
+playerDropdown.Name = "PlayerDropdown"
+playerDropdown.Position = UDim2.new(0, 10, 0, currentY)
+playerDropdown.Size = UDim2.new(1, -20, 0, 30)
+playerDropdown.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+playerDropdown.Text = "Click to select player"
+playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+playerDropdown.Font = Enum.Font.Gotham
+playerDropdown.TextSize = 11
+playerDropdown.ZIndex = 12
+playerDropdown.Parent = buttonContainer
+currentY = currentY + 35
+
+-- 7. Teleport to Player
+buttons.tpBtn = createMenuButton("TpBtn", "Teleport to Player", currentY, Color3.fromRGB(255, 150, 50), "📍")
+buttons.tpBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 8. Speed Control
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Position = UDim2.new(0, 10, 0, currentY)
+speedLabel.Size = UDim2.new(1, -20, 0, 25)
+speedLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
+speedLabel.BackgroundTransparency = 0.5
+speedLabel.Text = "Fly Speed: " .. flySpeed
+speedLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 12
+speedLabel.TextXAlignment = Enum.TextXAlignment.Center
+speedLabel.ZIndex = 12
+speedLabel.Parent = buttonContainer
+currentY = currentY + 30
+
+-- Speed Controls
+local speedControlFrame = Instance.new("Frame")
+speedControlFrame.Name = "SpeedControlFrame"
+speedControlFrame.Position = UDim2.new(0, 10, 0, currentY)
+speedControlFrame.Size = UDim2.new(1, -20, 0, 30)
+speedControlFrame.BackgroundTransparency = 1
+speedControlFrame.ZIndex = 12
+
+local speedDownBtn = Instance.new("TextButton")
+speedDownBtn.Name = "SpeedDownBtn"
+speedDownBtn.Position = UDim2.new(0, 0, 0, 0)
+speedDownBtn.Size = UDim2.new(0, 70, 1, 0)
+speedDownBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+speedDownBtn.Text = "- SPEED"
+speedDownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedDownBtn.Font = Enum.Font.GothamBold
+speedDownBtn.TextSize = 10
+
+local speedUpBtn = Instance.new("TextButton")
+speedUpBtn.Name = "SpeedUpBtn"
+speedUpBtn.Position = UDim2.new(1, -70, 0, 0)
+speedUpBtn.Size = UDim2.new(0, 70, 1, 0)
+speedUpBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+speedUpBtn.Text = "+ SPEED"
+speedUpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedUpBtn.Font = Enum.Font.GothamBold
+speedUpBtn.TextSize = 10
+
+speedDownBtn.Parent = speedControlFrame
+speedUpBtn.Parent = speedControlFrame
+speedControlFrame.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 9. Walk Speed
+buttons.walkBtn = createMenuButton("WalkBtn", "Walk Speed: 16", currentY, Color3.fromRGB(100, 200, 255), "🚶")
+buttons.walkBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 10. Jump Power
+buttons.jumpBtn = createMenuButton("JumpBtn", "Jump Power: 50", currentY, Color3.fromRGB(255, 150, 200), "🦘")
+buttons.jumpBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 11. Reset Character
+buttons.resetBtn = createMenuButton("ResetBtn", "Reset Character", currentY, Color3.fromRGB(255, 200, 100), "🔄")
+buttons.resetBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 12. Close Script
+buttons.closeBtn = createMenuButton("CloseBtn", "Close Script", currentY, Color3.fromRGB(255, 50, 50), "❌")
+buttons.closeBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- Update container height
+buttonContainer.Size = UDim2.new(1, 0, 0, currentY + 10)
+
+-- ============================================
+-- 7. FUNGSI UTAMA
+-- ============================================
+
+-- Fungsi update UI
+local function updateUI()
+    -- Center Dot
+    centerDot.Visible = dotEnabled
+    buttons.dotBtn.Text = "🔴 Center Dot: " .. (dotEnabled and "ON" or "OFF")
+    buttons.dotBtn.BackgroundColor3 = dotEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 50, 50)
+    dotQuickBtn.BackgroundColor3 = dotEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 50, 50)
     
-    centerDot.Parent = screenGui
+    -- Fly Mode
+    buttons.flyBtn.Text = "✈️ Fly Mode: " .. (flyEnabled and "ON" or "OFF")
+    buttons.flyBtn.BackgroundColor3 = flyEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(50, 150, 255)
+    flyQuickBtn.BackgroundColor3 = flyEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(50, 150, 255)
+    flyControlPanel.Visible = flyEnabled
     
-    -- ============================================
-    -- MAIN MENU
-    -- ============================================
-    local mainMenu = Instance.new("Frame")
-    mainMenu.Name = "MainMenu"
-    mainMenu.Position = UDim2.new(0, 20, 0, 20)
-    mainMenu.Size = UDim2.new(0, 180, 0, 300)
-    mainMenu.BackgroundColor3 = Color3.fromRGB(20, 25, 35)
-    mainMenu.BackgroundTransparency = 0.1
-    mainMenu.BorderSizePixel = 0
+    -- Noclip
+    buttons.noclipBtn.Text = "👻 Noclip: " .. (noclipEnabled and "ON" or "OFF")
+    buttons.noclipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 100, 255)
     
-    local menuCorner = Instance.new("UICorner")
-    menuCorner.CornerRadius = UDim.new(0, 12)
-    menuCorner.Parent = mainMenu
+    -- God Mode
+    buttons.godBtn.Text = "🛡️ God Mode: " .. (godModeEnabled and "ON" or "OFF")
+    buttons.godBtn.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 200, 50)
     
-    -- Header
-    local menuHeader = Instance.new("Frame")
-    menuHeader.Name = "Header"
-    menuHeader.Size = UDim2.new(1, 0, 0, 40)
-    menuHeader.BackgroundColor3 = Color3.fromRGB(40, 50, 70)
-    menuHeader.BorderSizePixel = 0
+    -- Spectate Mode
+    buttons.spectateBtn.Text = "👁️ Spectate: " .. (spectateEnabled and "ON" or "OFF")
+    buttons.spectateBtn.BackgroundColor3 = spectateEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(150, 100, 200)
     
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, 12)
-    headerCorner.Parent = menuHeader
-    
-    -- Title
-    local menuTitle = Instance.new("TextLabel")
-    menuTitle.Name = "Title"
-    menuTitle.Size = UDim2.new(1, -40, 1, 0)
-    menuTitle.BackgroundTransparency = 1
-    menuTitle.Text = "🎮 DOT MENU"
-    menuTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    menuTitle.Font = Enum.Font.GothamBold
-    menuTitle.TextSize = 14
-    menuTitle.TextXAlignment = Enum.TextXAlignment.Left
-    menuTitle.Position = UDim2.new(0, 10, 0, 0)
-    menuTitle.Parent = menuHeader
-    
-    -- Close Button
-    local closeMenuBtn = Instance.new("TextButton")
-    closeMenuBtn.Name = "CloseMenuBtn"
-    closeMenuBtn.Position = UDim2.new(1, -35, 0, 5)
-    closeMenuBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeMenuBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
-    closeMenuBtn.Text = "X"
-    closeMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeMenuBtn.Font = Enum.Font.GothamBold
-    closeMenuBtn.TextSize = 14
-    closeMenuBtn.Parent = menuHeader
-    
-    local closeBtnCorner = Instance.new("UICorner")
-    closeBtnCorner.CornerRadius = UDim.new(0, 6)
-    closeBtnCorner.Parent = closeMenuBtn
-    
-    -- Scrolling Frame
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Name = "ScrollFrame"
-    scrollFrame.Position = UDim2.new(0, 0, 0, 45)
-    scrollFrame.Size = UDim2.new(1, 0, 1, -45)
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 8
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 150, 255)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 600)
-    scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    
-    menuHeader.Parent = mainMenu
-    closeMenuBtn.Parent = menuHeader
-    scrollFrame.Parent = mainMenu
-    mainMenu.Parent = screenGui
-    
-    -- ============================================
-    -- QUICK ACCESS BUTTONS
-    -- ============================================
-    local quickAccess = Instance.new("Frame")
-    quickAccess.Name = "QuickAccess"
-    quickAccess.Position = UDim2.new(0, 20, 0, 330)
-    quickAccess.Size = UDim2.new(0, 180, 0, 40)
-    quickAccess.BackgroundColor3 = Color3.fromRGB(30, 35, 45)
-    quickAccess.BackgroundTransparency = 0.2
-    quickAccess.BorderSizePixel = 0
-    
-    local quickCorner = Instance.new("UICorner")
-    quickCorner.CornerRadius = UDim.new(0, 8)
-    quickCorner.Parent = quickAccess
-    
-    -- Dot Button
-    local dotQuickBtn = Instance.new("TextButton")
-    dotQuickBtn.Name = "DotQuickBtn"
-    dotQuickBtn.Position = UDim2.new(0, 10, 0, 5)
-    dotQuickBtn.Size = UDim2.new(0, 50, 0, 30)
-    dotQuickBtn.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    dotQuickBtn.Text = "🔴"
-    dotQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    dotQuickBtn.Font = Enum.Font.GothamBold
-    dotQuickBtn.TextSize = 14
-    dotQuickBtn.Parent = quickAccess
-    
-    -- Fly Button
-    local flyQuickBtn = Instance.new("TextButton")
-    flyQuickBtn.Name = "FlyQuickBtn"
-    flyQuickBtn.Position = UDim2.new(0, 70, 0, 5)
-    flyQuickBtn.Size = UDim2.new(0, 50, 0, 30)
-    flyQuickBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 255)
-    flyQuickBtn.Text = "✈️"
-    flyQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    flyQuickBtn.Font = Enum.Font.GothamBold
-    flyQuickBtn.TextSize = 14
-    flyQuickBtn.Parent = quickAccess
-    
-    -- Menu Button
-    local menuQuickBtn = Instance.new("TextButton")
-    menuQuickBtn.Name = "MenuQuickBtn"
-    menuQuickBtn.Position = UDim2.new(0, 130, 0, 5)
-    menuQuickBtn.Size = UDim2.new(0, 40, 0, 30)
-    menuQuickBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 150)
-    menuQuickBtn.Text = "☰"
-    menuQuickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    menuQuickBtn.Font = Enum.Font.GothamBold
-    menuQuickBtn.TextSize = 16
-    menuQuickBtn.Parent = quickAccess
-    
-    quickAccess.Parent = screenGui
-    
-    -- ============================================
-    -- BUTTON CONTAINER
-    -- ============================================
-    local buttonContainer = Instance.new("Frame")
-    buttonContainer.Name = "ButtonContainer"
-    buttonContainer.Size = UDim2.new(1, 0, 0, 0)
-    buttonContainer.BackgroundTransparency = 1
-    buttonContainer.Parent = scrollFrame
-    
-    -- ============================================
-    -- STATE VARIABLES
-    -- ============================================
-    local dotEnabled = true
-    local flyEnabled = false
-    local noclipEnabled = false
-    local godModeEnabled = false
-    local flySpeed = 50
-    local flyBV, flyBG
-    
-    -- ============================================
-    -- FUNGSI BUAT TOMBOL
-    -- ============================================
-    local function createMenuButton(text, yPos, color, icon)
-        local button = Instance.new("TextButton")
-        button.Position = UDim2.new(0, 10, 0, yPos)
-        button.Size = UDim2.new(1, -20, 0, 35)
-        button.BackgroundColor3 = color
-        button.Text = icon .. " " .. text
-        button.TextColor3 = Color3.fromRGB(255, 255, 255)
-        button.Font = Enum.Font.GothamBold
-        button.TextSize = 12
-        button.AutoButtonColor = true
-        button.TextXAlignment = Enum.TextXAlignment.Left
-        
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(0, 6)
-        buttonCorner.Parent = button
-        
-        return button
-    end
-    
-    -- ============================================
-    -- BUAT TOMBOL-TOMBOL
-    -- ============================================
-    local buttons = {}
-    local currentY = 10
-    
-    -- 1. Center Dot
-    buttons.dotBtn = createMenuButton("Center Dot: ON", currentY, Color3.fromRGB(255, 50, 50), "🔴")
-    buttons.dotBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 2. Fly Mode
-    buttons.flyBtn = createMenuButton("Fly Mode: OFF", currentY, Color3.fromRGB(50, 150, 255), "✈️")
-    buttons.flyBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 3. Noclip
-    buttons.noclipBtn = createMenuButton("Noclip: OFF", currentY, Color3.fromRGB(180, 100, 255), "👻")
-    buttons.noclipBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 4. God Mode
-    buttons.godBtn = createMenuButton("God Mode: OFF", currentY, Color3.fromRGB(255, 200, 50), "🛡️")
-    buttons.godBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 5. Speed Label
-    local speedLabel = Instance.new("TextLabel")
-    speedLabel.Position = UDim2.new(0, 10, 0, currentY)
-    speedLabel.Size = UDim2.new(1, -20, 0, 25)
-    speedLabel.BackgroundColor3 = Color3.fromRGB(40, 45, 60)
-    speedLabel.BackgroundTransparency = 0.5
+    -- Speed Label
     speedLabel.Text = "Fly Speed: " .. flySpeed
-    speedLabel.TextColor3 = Color3.fromRGB(200, 220, 255)
-    speedLabel.Font = Enum.Font.Gotham
-    speedLabel.TextSize = 12
-    speedLabel.TextXAlignment = Enum.TextXAlignment.Center
-    speedLabel.Parent = buttonContainer
-    currentY = currentY + 30
     
-    -- 6. Speed Controls
-    local speedControlFrame = Instance.new("Frame")
-    speedControlFrame.Position = UDim2.new(0, 10, 0, currentY)
-    speedControlFrame.Size = UDim2.new(1, -20, 0, 30)
-    speedControlFrame.BackgroundTransparency = 1
-    
-    local speedDownBtn = Instance.new("TextButton")
-    speedDownBtn.Name = "SpeedDownBtn"
-    speedDownBtn.Position = UDim2.new(0, 0, 0, 0)
-    speedDownBtn.Size = UDim2.new(0, 70, 1, 0)
-    speedDownBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-    speedDownBtn.Text = "- SPEED"
-    speedDownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedDownBtn.Font = Enum.Font.GothamBold
-    speedDownBtn.TextSize = 10
-    
-    local speedUpBtn = Instance.new("TextButton")
-    speedUpBtn.Name = "SpeedUpBtn"
-    speedUpBtn.Position = UDim2.new(1, -70, 0, 0)
-    speedUpBtn.Size = UDim2.new(0, 70, 1, 0)
-    speedUpBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-    speedUpBtn.Text = "+ SPEED"
-    speedUpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    speedUpBtn.Font = Enum.Font.GothamBold
-    speedUpBtn.TextSize = 10
-    
-    speedDownBtn.Parent = speedControlFrame
-    speedUpBtn.Parent = speedControlFrame
-    speedControlFrame.Parent = buttonContainer
-    currentY = currentY + 35
-    
-    -- 7. Walk Speed
-    buttons.walkBtn = createMenuButton("Walk Speed: 16", currentY, Color3.fromRGB(100, 200, 255), "🚶")
-    buttons.walkBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 8. Jump Power
-    buttons.jumpBtn = createMenuButton("Jump Power: 50", currentY, Color3.fromRGB(255, 150, 200), "🦘")
-    buttons.jumpBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 9. Teleport Spawn
-    buttons.tpBtn = createMenuButton("Teleport Spawn", currentY, Color3.fromRGB(150, 255, 150), "📍")
-    buttons.tpBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 10. Reset Character
-    buttons.resetBtn = createMenuButton("Reset Character", currentY, Color3.fromRGB(255, 200, 100), "🔄")
-    buttons.resetBtn.Parent = buttonContainer
-    currentY = currentY + 40
-    
-    -- 11. Close Script
-    buttons.closeBtn = createMenuButton("Close Script", currentY, Color3.fromRGB(255, 50, 50), "❌")
-    buttons.closeBtn.Parent = buttonContainer
-    
-    -- Update container height
-    buttonContainer.Size = UDim2.new(1, 0, 0, currentY + 50)
-    
-    -- ============================================
-    -- FUNGSI UPDATE UI
-    -- ============================================
-    local function updateUI()
-        -- Center Dot
-        centerDot.Visible = dotEnabled
-        buttons.dotBtn.Text = "🔴 Center Dot: " .. (dotEnabled and "ON" or "OFF")
-        buttons.dotBtn.BackgroundColor3 = dotEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 50, 50)
-        dotQuickBtn.BackgroundColor3 = dotEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 50, 50)
-        
-        -- Fly Mode
-        buttons.flyBtn.Text = "✈️ Fly Mode: " .. (flyEnabled and "ON" or "OFF")
-        buttons.flyBtn.BackgroundColor3 = flyEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(50, 150, 255)
-        flyQuickBtn.BackgroundColor3 = flyEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(50, 150, 255)
-        
-        -- Noclip
-        buttons.noclipBtn.Text = "👻 Noclip: " .. (noclipEnabled and "ON" or "OFF")
-        buttons.noclipBtn.BackgroundColor3 = noclipEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(180, 100, 255)
-        
-        -- God Mode
-        buttons.godBtn.Text = "🛡️ God Mode: " .. (godModeEnabled and "ON" or "OFF")
-        buttons.godBtn.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 200, 50)
-        
-        -- Speed Label
-        speedLabel.Text = "Fly Speed: " .. flySpeed
+    -- Player Dropdown
+    if spectatingPlayer then
+        playerDropdown.Text = "Selected: " .. spectatingPlayer.Name
+    else
+        playerDropdown.Text = "Click to select player"
     end
-    
-    -- ============================================
-    -- FUNGSI-FUNGSI FITUR
-    -- ============================================
-    
-    -- 1. Center Dot
-    buttons.dotBtn.MouseButton1Click:Connect(function()
-        dotEnabled = not dotEnabled
-        updateUI()
-    end)
-    
-    dotQuickBtn.MouseButton1Click:Connect(function()
-        dotEnabled = not dotEnabled
-        updateUI()
-    end)
-    
-    -- 2. Fly Mode
-    local function enableFly()
-        if flyEnabled then return end
-        
-        flyEnabled = true
-        
-        -- Buat BodyVelocity dan BodyGyro
-        flyBV = Instance.new("BodyVelocity")
-        flyBV.Velocity = Vector3.new(0, 0, 0)
-        flyBV.MaxForce = Vector3.new(40000, 40000, 40000)
-        flyBV.P = 10000
-        
-        flyBG = Instance.new("BodyGyro")
-        flyBG.MaxTorque = Vector3.new(40000, 40000, 40000)
-        flyBG.P = 10000
-        flyBG.CFrame = humanoidRootPart.CFrame
-        
-        -- Pasang ke karakter
-        flyBV.Parent = humanoidRootPart
-        flyBG.Parent = humanoidRootPart
-        
-        -- Nonaktifkan gravitasi
-        humanoid.PlatformStand = true
-        
-        updateUI()
-    end
-    
-    local function disableFly()
-        if not flyEnabled then return end
-        
-        flyEnabled = false
-        
-        -- Hapus BodyVelocity dan BodyGyro
-        if flyBV then flyBV:Destroy() end
-        if flyBG then flyBG:Destroy() end
-        
-        -- Aktifkan gravitasi
-        humanoid.PlatformStand = false
-        
-        updateUI()
-    end
-    
-    buttons.flyBtn.MouseButton1Click:Connect(function()
-        if flyEnabled then
-            disableFly()
-        else
-            enableFly()
-        end
-    end)
-    
-    flyQuickBtn.MouseButton1Click:Connect(function()
-        if flyEnabled then
-            disableFly()
-        else
-            enableFly()
-        end
-    end)
-    
-    -- Kontrol Fly dengan Keyboard
-    RunService.RenderStepped:Connect(function()
-        if not flyEnabled or not flyBV then return end
-        
-        local camera = workspace.CurrentCamera
-        if not camera then return end
-        
-        local forward = camera.CFrame.LookVector
-        local right = camera.CFrame.RightVector
-        local up = Vector3.new(0, 1, 0)
-        
-        local moveDirection = Vector3.new(0, 0, 0)
-        
-        -- Kontrol keyboard
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + forward end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection = moveDirection - forward end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection = moveDirection - right end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection = moveDirection + right end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection = moveDirection + up end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection = moveDirection - up end
-        
-        -- Terapkan speed
-        if moveDirection.Magnitude > 0 then
-            moveDirection = moveDirection.Unit * flySpeed
-        end
-        
-        flyBV.Velocity = moveDirection
-        
-        if flyBG then
-            flyBG.CFrame = CFrame.new(humanoidRootPart.Position, humanoidRootPart.Position + camera.CFrame.LookVector)
-        end
-    end)
-    
-    -- 3. Noclip
-    buttons.noclipBtn.MouseButton1Click:Connect(function()
-        noclipEnabled = not noclipEnabled
-        
-        if noclipEnabled then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        else
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-        
-        updateUI()
-    end)
-    
-    -- Auto noclip saat karakter berubah
-    player.CharacterAdded:Connect(function(newChar)
-        character = newChar
-        humanoid = newChar:WaitForChild("Humanoid")
-        humanoidRootPart = newChar:WaitForChild("HumanoidRootPart")
-        
-        if noclipEnabled then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-        
-        if flyEnabled then
-            wait(0.5)
-            enableFly()
-        end
-    end)
-    
-    -- 4. God Mode
-    buttons.godBtn.MouseButton1Click:Connect(function()
-        godModeEnabled = not godModeEnabled
-        
-        if godModeEnabled then
-            humanoid.MaxHealth = math.huge
-            humanoid.Health = humanoid.MaxHealth
-        else
-            humanoid.MaxHealth = 100
-            humanoid.Health = 100
-        end
-        
-        updateUI()
-    end)
-    
-    -- 5. Speed Control
-    speedUpBtn.MouseButton1Click:Connect(function()
-        flySpeed = math.min(200, flySpeed + 10)
-        updateUI()
-    end)
-    
-    speedDownBtn.MouseButton1Click:Connect(function()
-        flySpeed = math.max(10, flySpeed - 10)
-        updateUI()
-    end)
-    
-    -- 6. Walk Speed
-    local walkSpeed = 16
-    buttons.walkBtn.MouseButton1Click:Connect(function()
-        walkSpeed = walkSpeed == 16 and 50 or (walkSpeed == 50 and 100 or 16)
-        humanoid.WalkSpeed = walkSpeed
-        buttons.walkBtn.Text = "🚶 Walk Speed: " .. walkSpeed
-    end)
-    
-    -- 7. Jump Power
-    local jumpPower = 50
-    buttons.jumpBtn.MouseButton1Click:Connect(function()
-        jumpPower = jumpPower == 50 and 100 or (jumpPower == 100 and 200 or 50)
-        humanoid.JumpPower = jumpPower
-        buttons.jumpBtn.Text = "🦘 Jump Power: " .. jumpPower
-    end)
-    
-    -- 8. Teleport Spawn
-    buttons.tpBtn.MouseButton1Click:Connect(function()
-        disableFly()
-        
-        -- Cari spawn location
-        local spawnLocation = workspace:FindFirstChild("SpawnLocation") or workspace
-        local spawnPosition = Vector3.new(0, 10, 0)
-        
-        if spawnLocation:IsA("SpawnLocation") then
-            spawnPosition = spawnLocation.Position
-        end
-        
-        humanoidRootPart.CFrame = CFrame.new(spawnPosition)
-    end)
-    
-    -- 9. Reset Character
-    buttons.resetBtn.MouseButton1Click:Connect(function()
-        disableFly()
-        humanoid.Health = 0
-    end)
-    
-    -- 10. Close Script
-    buttons.closeBtn.MouseButton1Click:Connect(function()
-        disableFly()
-        screenGui:Destroy()
-    end)
-    
-    -- ============================================
-    -- TOGGLE MENU
-    -- ============================================
-    closeMenuBtn.MouseButton1Click:Connect(function()
-        mainMenu.Visible = not mainMenu.Visible
-        quickAccess.Visible = not quickAccess.Visible
-    end)
-    
-    menuQuickBtn.MouseButton1Click:Connect(function()
-        mainMenu.Visible = not mainMenu.Visible
-        quickAccess.Visible = not quickAccess.Visible
-    end)
-    
-    -- ============================================
-    -- DRAG MENU
-    -- ============================================
-    local dragging = false
-    local dragStart, startPos
-    
-    menuHeader.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = mainMenu.Position
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.Touch then
-            local delta = input.Position - dragStart
-            mainMenu.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-            quickAccess.Position = UDim2.new(0, mainMenu.Position.X.Offset, 0, mainMenu.Position.Y.Offset + 310)
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch then
-            dragging = false
-        end
-    end)
-    
-    -- ============================================
-    -- ANIMASI DOT
-    -- ============================================
-    RunService.RenderStepped:Connect(function()
-        if dotEnabled then
-            local pulse = math.sin(tick() * 3) * 0.1 + 0.9
-            centerDot.BackgroundTransparency = 0.3 + (0.2 * (1 - pulse))
-            centerDot.Size = UDim2.new(0, 12 * pulse, 0, 12 * pulse)
-        end
-    end)
-    
-    -- ============================================
-    -- INITIAL UPDATE
-    -- ============================================
-    updateUI()
-    
-    print("🎮 Ultimate Dot Script Loaded Successfully!")
-    print("✅ Center Dot: ON")
-    print("✅ Menu: Ready")
-    print("✅ Features: Dot, Fly, Noclip, God Mode")
-    
-    return screenGui
 end
 
--- Jalankan script
-local success, result = pcall(Main)
-if not success then
-    warn("Error loading script: " .. result)
-end
+-- ============================================
+-- 8. PLAYER SELECTION SYSTEM
+-- ============================================
+local function showPlayerList()
+    -- Create a simple popup for player selection
+    local popup = Instance.new("Frame")
+    popup.Name = "PlayerListPopup"
+    popup.Position = UDim2.new(0.5, -100, 0.5, -150)
+    popup.Size = UDim2.new(0, 200, 0, 300)
+    popup.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+    popup.BackgroundTransparency = 0.1
+    popup.ZIndex = 100
+    
+    local popupCorner = Instance.new("UICorner")
+    popupCorner.CornerRadius = UDim.new(0, 12)
+    popupCorner.Parent = popup
+    
+    local popupTitle = Instance.new("TextLabel")
+    popupTitle.Size = UDim2.new(1, 0, 0, 40)
+    popupTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
+    popupTitle.Text = "SELECT PLAYER"
+    popupTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    popupTitle.Font = Enum.Font.GothamBold
+    popupTitle.TextSize = 16
+    popupTitle.Parent = popup
+    
+    local popupScroll = Instance.new("ScrollingFrame")
+    popupScroll.Position = UDim2.new(0, 10, 0, 50)
+    popupScroll.Size = UDim2.new(1, -20, 1, -60)
+    popupScroll.BackgroundTransparency = 1
+    popupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+    popupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    popupScroll.Parent = popup
+    
+    local popupContainer = Instance.new("Frame")
+    popupContainer.Size = UDim2.new(1, 0, 0, 0)
+    popupContainer.BackgroundTransparency = 1
+    popupContainer.Parent = popupScroll
+    
+    -- Add all players
+    local popupY = 10
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player then
+            local playerBtn = Instance.new("TextButton")
+            playerBtn.Position = UDim2.new(0, 10, 0, popupY)
+            playerBtn.Size = UDim2.new(1, -20, 0, 30)
+            playerBtn.BackgroundColor3 = Color3.fromRGB(60, 6
