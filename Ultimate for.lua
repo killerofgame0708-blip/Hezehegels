@@ -1,6 +1,6 @@
 -- ============================================
 -- 🎮 ULTIMATE SCRIPT VERSI FINAL 🎮
--- Center Dot + Fly + Spectate + Teleport + God Mode Fix
+-- Center Dot + Fly + Spectate + Teleport + ESP + God Mode Fix
 -- ============================================
 
 -- Tunggu game load
@@ -45,10 +45,13 @@ local flyEnabled = false
 local noclipEnabled = false
 local godModeEnabled = false
 local spectateEnabled = false
+local espEnabled = false
 local flySpeed = 50
 local spectatingPlayer = nil
 local originalCameraType = nil
 local flyBV, flyBG
+local espFolder = Instance.new("Folder", Workspace)
+espFolder.Name = "ESPFolder_" .. player.UserId
 
 -- ============================================
 -- 1. CENTER DOT
@@ -166,7 +169,7 @@ flyControlPanel.Parent = screenGui
 local mainMenu = Instance.new("Frame")
 mainMenu.Name = "MainMenu"
 mainMenu.Position = UDim2.new(0, 10, 0, 70)
-mainMenu.Size = UDim2.new(0, 200, 0, 300)
+mainMenu.Size = UDim2.new(0, 200, 0, 350)
 mainMenu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
 mainMenu.BackgroundTransparency = 0.1
 mainMenu.BorderSizePixel = 0
@@ -227,7 +230,7 @@ scrollFrame.BackgroundTransparency = 1
 scrollFrame.BorderSizePixel = 0
 scrollFrame.ScrollBarThickness = 8
 scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 150)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 800)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
 scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
 scrollFrame.VerticalScrollBarInset = Enum.ScrollBarInset.Always
 scrollFrame.ZIndex = 11
@@ -347,12 +350,17 @@ buttons.godBtn = createMenuButton("GodBtn", "God Mode: OFF", currentY, Color3.fr
 buttons.godBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 5. Spectate Mode
-buttons.spectateBtn = createMenuButton("SpectateBtn", "Spectate: OFF", currentY, Color3.fromRGB(150, 100, 200), "👁️")
+-- 5. ESP Players
+buttons.espBtn = createMenuButton("EspBtn", "ESP Players: OFF", currentY, Color3.fromRGB(50, 200, 100), "👁️")
+buttons.espBtn.Parent = buttonContainer
+currentY = currentY + 40
+
+-- 6. Spectate Mode
+buttons.spectateBtn = createMenuButton("SpectateBtn", "Spectate: OFF", currentY, Color3.fromRGB(150, 100, 200), "🎥")
 buttons.spectateBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 6. Player List for Spectate/Teleport
+-- 7. Player List for Spectate/Teleport
 local playerListLabel = Instance.new("TextLabel")
 playerListLabel.Name = "PlayerListLabel"
 playerListLabel.Position = UDim2.new(0, 10, 0, currentY)
@@ -382,12 +390,12 @@ playerDropdown.ZIndex = 12
 playerDropdown.Parent = buttonContainer
 currentY = currentY + 35
 
--- 7. Teleport to Player
+-- 8. Teleport to Player
 buttons.tpBtn = createMenuButton("TpBtn", "Teleport to Player", currentY, Color3.fromRGB(255, 150, 50), "📍")
 buttons.tpBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 8. Speed Control
+-- 9. Speed Control
 local speedLabel = Instance.new("TextLabel")
 speedLabel.Name = "SpeedLabel"
 speedLabel.Position = UDim2.new(0, 10, 0, currentY)
@@ -436,22 +444,22 @@ speedUpBtn.Parent = speedControlFrame
 speedControlFrame.Parent = buttonContainer
 currentY = currentY + 40
 
--- 9. Walk Speed
+-- 10. Walk Speed
 buttons.walkBtn = createMenuButton("WalkBtn", "Walk Speed: 16", currentY, Color3.fromRGB(100, 200, 255), "🚶")
 buttons.walkBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 10. Jump Power
+-- 11. Jump Power
 buttons.jumpBtn = createMenuButton("JumpBtn", "Jump Power: 50", currentY, Color3.fromRGB(255, 150, 200), "🦘")
 buttons.jumpBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 11. Reset Character
+-- 12. Reset Character
 buttons.resetBtn = createMenuButton("ResetBtn", "Reset Character", currentY, Color3.fromRGB(255, 200, 100), "🔄")
 buttons.resetBtn.Parent = buttonContainer
 currentY = currentY + 40
 
--- 12. Close Script
+-- 13. Close Script
 buttons.closeBtn = createMenuButton("CloseBtn", "Close Script", currentY, Color3.fromRGB(255, 50, 50), "❌")
 buttons.closeBtn.Parent = buttonContainer
 currentY = currentY + 40
@@ -485,8 +493,12 @@ local function updateUI()
     buttons.godBtn.Text = "🛡️ God Mode: " .. (godModeEnabled and "ON" or "OFF")
     buttons.godBtn.BackgroundColor3 = godModeEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(255, 200, 50)
     
+    -- ESP
+    buttons.espBtn.Text = "👁️ ESP Players: " .. (espEnabled and "ON" or "OFF")
+    buttons.espBtn.BackgroundColor3 = espEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(50, 200, 100)
+    
     -- Spectate Mode
-    buttons.spectateBtn.Text = "👁️ Spectate: " .. (spectateEnabled and "ON" or "OFF")
+    buttons.spectateBtn.Text = "🎥 Spectate: " .. (spectateEnabled and "ON" or "OFF")
     buttons.spectateBtn.BackgroundColor3 = spectateEnabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(150, 100, 200)
     
     -- Speed Label
@@ -501,49 +513,45 @@ local function updateUI()
 end
 
 -- ============================================
--- 8. PLAYER SELECTION SYSTEM
+-- 8. ESP SYSTEM
 -- ============================================
-local function showPlayerList()
-    -- Create a simple popup for player selection
-    local popup = Instance.new("Frame")
-    popup.Name = "PlayerListPopup"
-    popup.Position = UDim2.new(0.5, -100, 0.5, -150)
-    popup.Size = UDim2.new(0, 200, 0, 300)
-    popup.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    popup.BackgroundTransparency = 0.1
-    popup.ZIndex = 100
+local espCache = {}
+
+local function createESP(targetPlayer)
+    if not targetPlayer or targetPlayer == player then return end
     
-    local popupCorner = Instance.new("UICorner")
-    popupCorner.CornerRadius = UDim.new(0, 12)
-    popupCorner.Parent = popup
+    local character = targetPlayer.Character
+    if not character then return end
     
-    local popupTitle = Instance.new("TextLabel")
-    popupTitle.Size = UDim2.new(1, 0, 0, 40)
-    popupTitle.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-    popupTitle.Text = "SELECT PLAYER"
-    popupTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    popupTitle.Font = Enum.Font.GothamBold
-    popupTitle.TextSize = 16
-    popupTitle.Parent = popup
+    -- Hapus ESP lama jika ada
+    if espCache[targetPlayer] then
+        espCache[targetPlayer]:Destroy()
+        espCache[targetPlayer] = nil
+    end
     
-    local popupScroll = Instance.new("ScrollingFrame")
-    popupScroll.Position = UDim2.new(0, 10, 0, 50)
-    popupScroll.Size = UDim2.new(1, -20, 1, -60)
-    popupScroll.BackgroundTransparency = 1
-    popupScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    popupScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    popupScroll.Parent = popup
+    -- Buat Highlight untuk ESP
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "ESP_" .. targetPlayer.Name
+    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+    highlight.FillTransparency = 0.7
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Parent = espFolder
     
-    local popupContainer = Instance.new("Frame")
-    popupContainer.Size = UDim2.new(1, 0, 0, 0)
-    popupContainer.BackgroundTransparency = 1
-    popupContainer.Parent = popupScroll
+    -- Pasang ke karakter
+    highlight.Adornee = character
     
-    -- Add all players
-    local popupY = 10
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player then
-            local playerBtn = Instance.new("TextButton")
-            playerBtn.Position = UDim2.new(0, 10, 0, popupY)
-            playerBtn.Size = UDim2.new(1, -20, 0, 30)
-            playerBtn.BackgroundColor3 = Color3.fromRGB(60, 6
+    -- Simpan di cache
+    espCache[targetPlayer] = highlight
+    
+    -- Update jika karakter berubah
+    local connection
+    connection = targetPlayer.CharacterAdded:Connect(function(newChar)
+        highlight.Adornee = newChar
+    end)
+    
+    -- Cleanup saat player keluar
+    targetPlayer.AncestryChanged:Connect(function()
+        if not targetPlayer.Parent then
+            if highlight t
